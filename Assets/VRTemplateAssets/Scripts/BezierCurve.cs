@@ -117,7 +117,7 @@ namespace Unity.VRTemplate
         /// <summary>
         /// Updates the line points to draw the bezier curve.
         /// </summary>
-        [ContextMenu("Draw")]
+        [UnityEngine.ContextMenu("Draw")]
         public void DrawCurve()
         {
             var startPointPosition = m_StartPoint.position;
