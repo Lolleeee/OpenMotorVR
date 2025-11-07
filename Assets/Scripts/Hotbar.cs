@@ -53,17 +53,6 @@ public class Hotbar : MonoBehaviour
     
     private bool wasTogglePressed = false;
     private float navigationCooldown = 0f;
-
-
-    
-    void OnEnable()
-    {
-        toggleHotbarAction.action.Enable();
-        spawnAction.action.Enable();
-        navigationAction.action.Enable();
-        
-        LoadPrefabsFromFolder();
-    }
     
     void LoadPrefabsFromFolder()
     {
@@ -420,11 +409,14 @@ public class Hotbar : MonoBehaviour
                 
                 GameObject spawnedObject = Instantiate(prefabToSpawn, spawnPosition, spawnRotation);
                 
-                Debug.Log($"Spawned: {prefabToSpawn.name}");
+                // ADD SPAWNED OBJECT COMPONENT
+                SpawnedObject spawnedComp = spawnedObject.GetComponent<SpawnedObject>();
+                if (spawnedComp == null)
+                {
+                    spawnedComp = spawnedObject.AddComponent<SpawnedObject>();
+                }
                 
-                // Optional: Add physics
-                if (spawnedObject.GetComponent<Rigidbody>() == null)
-                    spawnedObject.AddComponent<Rigidbody>();
+                Debug.Log($"Spawned: {prefabToSpawn.name}");
             }
         }
         else
@@ -432,9 +424,41 @@ public class Hotbar : MonoBehaviour
             Debug.LogWarning("No prefab at selected position");
         }
     }
-    
-    void OnDisable()
+
+    private void OnEnable()
     {
+        if (ModeManager.Instance != null)
+        {
+            ModeManager.Instance.OnModeChanged += HandleModeChanged;
+        }
+        toggleHotbarAction.action.Enable();
+        spawnAction.action.Enable();
+        navigationAction.action.Enable();
+        
+        LoadPrefabsFromFolder();
+    }
+
+    private void OnDisable()
+    {
+        if (ModeManager.Instance != null)
+        {
+            ModeManager.Instance.OnModeChanged -= HandleModeChanged;
+        }
         CloseHotbar();
+    }
+
+    private void HandleModeChanged(Mode newMode)
+    {
+        Debug.Log($"ContextMenu detected mode change: {newMode}");
+
+        // Example: disable menu if in Build mode
+        if (newMode == Mode.Build)
+        {
+            gameObject.SetActive(false);
+        }
+        else
+        {
+            gameObject.SetActive(true);
+        }
     }
 }

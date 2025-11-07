@@ -30,7 +30,22 @@ public class MenuOption : MonoBehaviour
     
     public void Execute()
     {
-        onExecute?.Invoke();
+        Debug.Log($"Executing {optionName}");
+
+        // Handle built-in option routing here
+        switch (optionName.ToLower())
+        {
+            case "build":
+                ModeManager.Instance.SetMode(Mode.Build);
+                break;
+            case "task":
+                ModeManager.Instance.SetMode(Mode.Task);
+                break;
+                
+            default:
+                Debug.LogWarning($"Unknown option: {optionName}");
+                break;
+        }
     }
     
     // Example menu actions

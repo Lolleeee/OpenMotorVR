@@ -3,18 +3,18 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
-public class ContextMenu : MonoBehaviour
+public class ObjectInspector : MonoBehaviour
 {
     [Header("References")]
     public GameObject menuPrefab;
-    public NearFarInteractor nearFarInteractor;
+    public NearFarInteractor interactor;
     public InputActionProperty menuButtonAction;
-    
+
     [Header("Settings")]
     public Vector3 menuOffset = Vector3.zero;
-    
+    private Transform target;
     private GameObject activeMenu;
-    private MenuOption currentHighlightedOption;
+    private InspectorOption currentHighlightedOption;
     
     void OnEnable()
     {
@@ -28,12 +28,12 @@ public class ContextMenu : MonoBehaviour
         if (isPressed && activeMenu == null)
         {
             // Button just pressed - spawn menu
-            OpenMenu();
+            TrySpawnMenu();
         }
         else if (!isPressed && activeMenu != null)
         {
             // Button released - execute and close
-            ExecuteMenuOption();
+            ExecuteInspectorOption();
             CloseMenu();
         }
         else if (isPressed && activeMenu != null)
@@ -43,23 +43,36 @@ public class ContextMenu : MonoBehaviour
         }
     }
     
-    void OnBuildSelected()
+    void OnBuildSelected(GameObject target)
     {
         Debug.Log("Opening build menu!");
     }
-    
-    void OnQuitSelected()
+
+    void OnQuitSelected(GameObject target)
     {
         Debug.Log("Quitting application!");
         Application.Quit();
-        #if UNITY_EDITOR
+#if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
-        #endif
+#endif
     }
-    void OpenMenu()
+    void TrySpawnMenu()
+    {
+        if (interactor.hasHover && interactor.interactablesHovered.Count > 0)
+        {
+            target = interactor.interactablesHovered[0].transform;
+            OpenMenu(target);
+            
+        }
+        else
+        {
+            Debug.Log("No object hovered to attach menu to");
+        }
+    }
+    void OpenMenu(Transform target)
     {
         // Get controller position/rotation at spawn time
-        Transform attachTransform = nearFarInteractor.attachTransform;
+        Transform attachTransform = interactor.attachTransform;
 
         // Calculate spawn position with offset
         Vector3 menuPosition = attachTransform.position + attachTransform.TransformDirection(menuOffset);
@@ -70,16 +83,23 @@ public class ContextMenu : MonoBehaviour
         // Spawn and leave it there!
         activeMenu = Instantiate(menuPrefab, menuPosition, menuRotation);
 
-        Debug.Log("Menu spawned and locked in world space");
-    }
+        
 
-    void CheckHoveredOption()
-    {
-        if (nearFarInteractor.hasHover)
+        // Pass the context (hovered object) to each option
+        foreach (var option in activeMenu.GetComponentsInChildren<InspectorOption>())
         {
-            Debug.Log($"Hovering something! Count: {nearFarInteractor.interactablesHovered.Count}");
-
-            foreach (var interactable in nearFarInteractor.interactablesHovered)
+            option.Initialize(target.gameObject);
+        }
+        Debug.Log($"Menu spawned between controller and {target.name}");
+    }
+    
+    void CheckHoveredOption()
+    {   
+        if (interactor.hasHover)
+        {
+            Debug.Log($"Hovering something! Count: {interactor.interactablesHovered.Count}");
+            
+            foreach (var interactable in interactor.interactablesHovered)
             {
                 Debug.Log($"Interactable: {interactable.transform.name}");
             }
@@ -89,16 +109,16 @@ public class ContextMenu : MonoBehaviour
             Debug.Log("Not hovering anything");
         }
         // Check what's being hovered
-        if (nearFarInteractor.hasHover && nearFarInteractor.interactablesHovered.Count > 0)
+        if (interactor.hasHover && interactor.interactablesHovered.Count > 0)
         {
-            var hoveredInteractable = nearFarInteractor.interactablesHovered[0];
-            MenuOption option = hoveredInteractable.transform.GetComponent<MenuOption>();
-
+            var hoveredInteractable = interactor.interactablesHovered[0];
+            InspectorOption option = hoveredInteractable.transform.GetComponent<InspectorOption>();
+            
             if (option != currentHighlightedOption)
             {
                 if (currentHighlightedOption != null)
                     currentHighlightedOption.SetHighlighted(false);
-
+                
                 currentHighlightedOption = option;
                 if (currentHighlightedOption != null)
                 {
@@ -116,8 +136,8 @@ public class ContextMenu : MonoBehaviour
             }
         }
     }
-
-    void ExecuteMenuOption()
+    
+    void ExecuteInspectorOption()
     {
         if (currentHighlightedOption != null)
         {
@@ -129,10 +149,7 @@ public class ContextMenu : MonoBehaviour
             Debug.Log("Menu closed - no option selected");
         }
     }
-    void OnBuildModeSelected()
-        {
-            ModeManager.Instance.SetMode(Mode.Build);
-        }
+    
     void CloseMenu()
     {
         if (activeMenu != null)
