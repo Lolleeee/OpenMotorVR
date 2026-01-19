@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 3
   tags:
   - Anchor
+  - TaskObject
   layers:
   - Default
   - TransparentFX
@@ -12,6 +13,8 @@ TagManager:
   - 
   - Water
   - UI
+  - Interactable
+  - InteractableNoCollision
   - 
   - 
   - 
@@ -34,9 +37,7 @@ TagManager:
   - 
   - 
   - 
-  - 
-  - 
-  - 
+  - XR Simulation
   - 
   m_SortingLayers:
   - name: Default

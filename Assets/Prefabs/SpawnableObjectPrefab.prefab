@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3612053225427182629}
   - component: {fileID: 958993738843289944}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: SpawnableObjectPrefab
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -48,3 +48,5 @@ MonoBehaviour:
   collisionEnabled: 1
   kinematic: 0
   grabEnabled: 1
+  layerCollision: Interactable
+  layerNoCollision: InteractableNoCollision
