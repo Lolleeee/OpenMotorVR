@@ -54,16 +54,78 @@ public class MenuOption : MonoBehaviour
                 break;
             case "save":
                 Debug.Log("Save action triggered");
-                SaveLoadManager.Instance.SaveScene();
+                SaveContentScene();
                 break;
             case "load":
                 Debug.Log("Load action triggered");
-                SaveLoadManager.Instance.LoadScene();
+                LoadLastSave();
                 break;
             default:
                 Debug.LogWarning($"Unknown option: {optionName} (no onExecute configured)");
                 break;
         }
+    }
+
+    // Public API for wiring in the Inspector (UnityEvent)
+    public void SaveContentScene()
+    {
+        TriggerSave();
+    }
+
+    public void LoadLastSave()
+    {
+        TriggerLoad();
+    }
+
+    private void TriggerSave()
+    {
+        var loader = ResolveSceneLoader();
+        if (loader != null)
+        {
+            loader.SaveContentScene();
+            return;
+        }
+
+        var saveSystem = ResolveSaveSystem();
+        if (saveSystem != null)
+        {
+            saveSystem.SaveScene();
+            return;
+        }
+
+        Debug.LogWarning("No SceneLoader or SaveSystem available to perform save.");
+    }
+
+    private void TriggerLoad()
+    {
+        var loader = ResolveSceneLoader();
+        if (loader != null)
+        {
+            loader.LoadLastSave();
+            return;
+        }
+
+        var saveSystem = ResolveSaveSystem();
+        if (saveSystem != null)
+        {
+            saveSystem.LoadScene();
+            return;
+        }
+
+        Debug.LogWarning("No SceneLoader or SaveSystem available to perform load.");
+    }
+
+    private SceneLoader ResolveSceneLoader()
+    {
+        if (SceneLoader.Instance != null)
+            return SceneLoader.Instance;
+
+        return FindFirstObjectByType<SceneLoader>();
+    }
+
+    private SaveSystem ResolveSaveSystem()
+    {
+        return FindFirstObjectByType<SaveSystem>();
     }
 
     // Example menu actions

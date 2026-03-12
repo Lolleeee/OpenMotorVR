@@ -1,9 +1,15 @@
+using System;
 using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using UnityEngine.XR.Interaction.Toolkit.Transformers;
 
 public class SpawnedObject : MonoBehaviour
 {
+    [Header("Persistence")]
+    [Tooltip("Stable ID used by the SaveSystem to match this object across loads.")]
+    public string persistentId;
+
     [Header("Physics Settings")]
     public bool gravityEnabled = true;
     public bool collisionEnabled = true;
@@ -20,6 +26,15 @@ public class SpawnedObject : MonoBehaviour
     [Tooltip("Allow the object to stay where grabbed instead of snapping to attach point")]
     public bool useDynamicAttach = true;
 
+    [Header("Build Tools")]
+    [Tooltip("If enabled, snap rotation to increments when released.")]
+    public bool snapRotationEnabled = false;
+    [Tooltip("Snap step in degrees.")]
+    public float snapRotationDegrees = 15f;
+
+    [Tooltip("If enabled, Rigidbody rotation is frozen.")]
+    public bool freezeRotationEnabled = false;
+
     [Header("Layer Configuration")]
     [Tooltip("Layer name for objects that collide physically (e.g. 'Interactable').")]
     public string layerCollision = "Interactable"; 
@@ -33,9 +48,14 @@ public class SpawnedObject : MonoBehaviour
     private XRGrabInteractable grabInteractable;
     private UnityEngine.XR.Interaction.Toolkit.XRInteractionManager manager;
     private bool _isSpecialVolume;
+    private Quaternion _frozenRotation;
+    private bool _isGrabFrozen;
 
     void Awake()
     {
+        if (string.IsNullOrEmpty(persistentId))
+            persistentId = Guid.NewGuid().ToString("N");
+
         _isSpecialVolume = GetComponentInChildren<GoalVolume>() != null || GetComponentInChildren<StartingZone>() != null;
 
         rb = GetComponent<Rigidbody>();
@@ -54,6 +74,10 @@ public class SpawnedObject : MonoBehaviour
         grabInteractable = GetComponent<XRGrabInteractable>() ?? gameObject.AddComponent<XRGrabInteractable>();
         simpleInteractable = GetComponent<XRSimpleInteractable>() ?? gameObject.AddComponent<XRSimpleInteractable>();
 
+        // Hook rotation snapping (release) and freeze-rotation support on grab
+        grabInteractable.selectExited.AddListener(OnGrabSelectExited);
+        grabInteractable.selectEntered.AddListener(OnGrabSelectEntered);
+
         var manager = grabInteractable.interactionManager ?? FindFirstObjectByType<UnityEngine.XR.Interaction.Toolkit.XRInteractionManager>();
 
         if (manager != null)
@@ -64,6 +88,31 @@ public class SpawnedObject : MonoBehaviour
         
         ConfigureTwoHandedScaling();
         ApplySettings();
+    }
+
+    void OnEnable()
+    {
+        // When this component gets re-enabled after mode switches, re-apply persisted settings.
+        // Awake() will not run again, so without this the object can stay in the wrong state.
+        if (rb == null)
+            rb = GetComponent<Rigidbody>();
+        if (colliders == null || colliders.Length == 0)
+            colliders = GetComponentsInChildren<Collider>(true);
+
+        ApplySettings();
+    }
+
+    public void ApplySavedSettings()
+    {
+        ApplySettings();
+    }
+
+    private void OnDestroy()
+    {
+        if (grabInteractable != null)
+            grabInteractable.selectExited.RemoveListener(OnGrabSelectExited);
+        if (grabInteractable != null)
+            grabInteractable.selectEntered.RemoveListener(OnGrabSelectEntered);
     }
 
     // -------------------- TOGGLE METHODS --------------------
@@ -149,7 +198,125 @@ public class SpawnedObject : MonoBehaviour
         if (enabled && rb == null) rb = gameObject.AddComponent<Rigidbody>();
         if (rb != null) rb.isKinematic = enabled;
 
+        // Requirement: if the object is non-kinematic (dynamic), it must have collisions (and typically gravity).
+        if (!enabled)
+        {
+            SetCollision(true);
+            SetGravity(true);
+        }
+
+        ApplyFreezeRotationIfNeeded();
+
         Debug.Log($"{gameObject.name}: Kinematic = {enabled}");
+    }
+
+    public void ToggleSnapRotation() => SetSnapRotation(!snapRotationEnabled);
+
+    private bool _syncingSnapFreeze;
+
+    public void SetSnapRotation(bool enabled)
+    {
+        if (snapRotationEnabled == enabled)
+            return;
+
+        snapRotationEnabled = enabled;
+        Debug.Log($"{name}: SnapRotation = {snapRotationEnabled} (step={snapRotationDegrees})");
+
+        if (enabled)
+            TryDisableFreezeRotation();
+    }
+
+    public void ToggleFreezeRotation() => SetFreezeRotation(!freezeRotationEnabled);
+
+    public void SetFreezeRotation(bool enabled)
+    {
+        if (freezeRotationEnabled == enabled)
+            return;
+
+        freezeRotationEnabled = enabled;
+        if (enabled)
+            TryDisableSnapRotation();
+
+        ApplyFreezeRotationIfNeeded();
+        Debug.Log($"{name}: FreezeRotation = {freezeRotationEnabled}");
+    }
+
+    private void ApplyFreezeRotationIfNeeded()
+    {
+        if (rb == null) rb = GetComponent<Rigidbody>();
+        if (rb == null) return;
+
+        if (freezeRotationEnabled)
+            rb.constraints = rb.constraints | RigidbodyConstraints.FreezeRotation;
+        else
+            rb.constraints = rb.constraints & ~RigidbodyConstraints.FreezeRotation;
+
+        SyncGrabRotationLock();
+    }
+
+    private void TryDisableFreezeRotation()
+    {
+        if (_syncingSnapFreeze)
+            return;
+
+        if (!freezeRotationEnabled)
+            return;
+
+        _syncingSnapFreeze = true;
+        SetFreezeRotation(false);
+        _syncingSnapFreeze = false;
+    }
+
+    private void TryDisableSnapRotation()
+    {
+        if (_syncingSnapFreeze)
+            return;
+
+        if (!snapRotationEnabled)
+            return;
+
+        _syncingSnapFreeze = true;
+        SetSnapRotation(false);
+        _syncingSnapFreeze = false;
+    }
+
+    private void SyncGrabRotationLock()
+    {
+        if (grabInteractable == null) return;
+
+        // When freeze rotation is enabled, prevent the grab from rotating the object.
+        grabInteractable.trackRotation = !freezeRotationEnabled;
+
+        if (freezeRotationEnabled && _isGrabFrozen)
+        {
+            transform.rotation = _frozenRotation;
+        }
+    }
+
+    private void OnGrabSelectEntered(SelectEnterEventArgs args)
+    {
+        if (!freezeRotationEnabled)
+            return;
+
+        _frozenRotation = transform.rotation;
+        _isGrabFrozen = true;
+        SyncGrabRotationLock();
+    }
+
+    private void OnGrabSelectExited(SelectExitEventArgs args)
+    {
+        _isGrabFrozen = false;
+
+        if (!snapRotationEnabled)
+            return;
+        if (snapRotationDegrees <= 0.01f)
+            return;
+
+        Vector3 euler = transform.eulerAngles;
+        euler.x = Mathf.Round(euler.x / snapRotationDegrees) * snapRotationDegrees;
+        euler.y = Mathf.Round(euler.y / snapRotationDegrees) * snapRotationDegrees;
+        euler.z = Mathf.Round(euler.z / snapRotationDegrees) * snapRotationDegrees;
+        transform.rotation = Quaternion.Euler(euler);
     }
 
     public void SetGrabbable(bool enabled)
@@ -216,8 +383,8 @@ public class SpawnedObject : MonoBehaviour
 
     public void DestroyObject()
     {
-        Debug.Log($"Destroying {gameObject.name}");
-        Destroy(gameObject);
+        Debug.Log($"Deactivating {gameObject.name} (can be restored on load)");
+        gameObject.SetActive(false);
     }
 
     void ApplySettings()
@@ -226,6 +393,7 @@ public class SpawnedObject : MonoBehaviour
         SetGravity(gravityEnabled);
         SetCollision(collisionEnabled);
         SetKinematic(kinematic);
+        ApplyFreezeRotationIfNeeded();
     }
 
     void ConfigureTwoHandedScaling()

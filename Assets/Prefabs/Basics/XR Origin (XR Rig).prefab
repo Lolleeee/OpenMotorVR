@@ -1391,7 +1391,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Hotbar
   hotbarPrefab: {fileID: 2404640036663546456, guid: 160a230417a0cf63192ce087a61fadfc, type: 3}
-  hotbarItemPrefab: {fileID: 628489683269990459, guid: 7a926ea75e5600bf3b45b9f096ba6e3c, type: 3}
   nearFarInteractor: {fileID: 501978846469366294}
   toggleHotbarAction:
     m_UseReference: 0
@@ -1453,8 +1452,8 @@ MonoBehaviour:
         m_Flags: 0
       m_Flags: 0
     m_Reference: {fileID: 0}
-  allowHotbar: 1
   hotbarOffset: {x: 0, y: 0, z: 0.15}
+  hotbarRotationOffsetEuler: {x: 0, y: 0, z: 0}
   spawnOffset: {x: 0, y: 0, z: 1}
   prefabFolderPath: SpawnablePrefabs
   visibleColumns: 3
@@ -1468,6 +1467,7 @@ MonoBehaviour:
   previewScale: 0.8
   rotatePreview: 1
   locomotionObject: {fileID: 9119225655263143340}
+  spawnedObjectsSceneName: SpawnedObjects
 --- !u!114 &16064517679476438
 MonoBehaviour:
   m_ObjectHideFlags: 0

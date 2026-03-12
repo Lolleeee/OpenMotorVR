@@ -8,7 +8,6 @@ public class Hotbar : MonoBehaviour
 {
     [Header("References")]
     public GameObject hotbarPrefab;
-    public GameObject hotbarItemPrefab; // Single item template
     public NearFarInteractor nearFarInteractor;
     
     [Header("Input Actions")]
@@ -16,7 +15,6 @@ public class Hotbar : MonoBehaviour
     public InputActionProperty spawnAction;
     public InputActionProperty navigationAction;
 
-    public bool allowHotbar = true;
     
     [Header("Settings")]
     public Vector3 hotbarOffset = new Vector3(0, 0, 0.15f);
@@ -43,8 +41,8 @@ public class Hotbar : MonoBehaviour
     public GameObject locomotionObject;
     
     [Header("Scene Management")]
-    [Tooltip("Name of the scene where spawned objects will be instantiated. Will be created if it doesn't exist.")]
-    public string spawnedObjectsSceneName = "SpawnedObjects";
+    [Tooltip("Name of the scene where spawned objects will be instantiated. Defaults to main 'Scene'.")]
+    public string spawnedObjectsSceneName = "Scene";
     
     private Scene spawnedObjectsScene;
     private GameObject activeHotbar;
@@ -70,19 +68,18 @@ public class Hotbar : MonoBehaviour
     
     void EnsureSpawnedObjectsScene()
     {
-        // Check if the scene already exists
+        // Prefer an existing scene named in config (default: "Scene")
         spawnedObjectsScene = SceneManager.GetSceneByName(spawnedObjectsSceneName);
-        
-        if (!spawnedObjectsScene.IsValid())
-        {
-            // Create new scene
-            spawnedObjectsScene = SceneManager.CreateScene(spawnedObjectsSceneName);
-            Debug.Log($"Created new scene for spawned objects: {spawnedObjectsSceneName}");
-        }
-        else
+
+        if (spawnedObjectsScene.IsValid())
         {
             Debug.Log($"Using existing scene for spawned objects: {spawnedObjectsSceneName}");
+            return;
         }
+
+        // Fallback to the active scene so spawns always land somewhere valid
+        spawnedObjectsScene = SceneManager.GetActiveScene();
+        Debug.LogWarning($"Scene '{spawnedObjectsSceneName}' not found. Falling back to active scene '{spawnedObjectsScene.name}'.");
     }
     
     void LoadPrefabsFromFolder()
@@ -454,7 +451,7 @@ public class Hotbar : MonoBehaviour
                 
                 GameObject spawnedObject = Instantiate(prefabToSpawn, spawnPosition, spawnRotation);
                 
-                // Move to spawned objects scene
+                // Move to target scene if valid (default 'Scene' or fallback active scene)
                 if (spawnedObjectsScene.IsValid())
                 {
                     SceneManager.MoveGameObjectToScene(spawnedObject, spawnedObjectsScene);

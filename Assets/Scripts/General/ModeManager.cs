@@ -24,6 +24,10 @@ public class ModeManager : MonoBehaviour
             return;
         }
         Instance = this;
+
+        // Ensure build-mode scripts get gated by mode.
+        if (GetComponent<BuildModeScriptsDeactivator>() == null)
+            gameObject.AddComponent<BuildModeScriptsDeactivator>();
     }
 
     public void SetMode(Mode newMode)

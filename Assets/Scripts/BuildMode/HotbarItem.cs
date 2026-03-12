@@ -15,7 +15,7 @@ public class HotbarItem : MonoBehaviour
     public bool rotatePreview = true;
     public float rotationSpeed = 30f;
     [Tooltip("Size threshold after which logarithmic scaling starts")]
-    public float logScaleThreshold = 0.1f;
+    public float logScaleThreshold = 0.05f;
     [Tooltip("Logarithm base for scaling objects larger than threshold")]
     public float logScaleBase = 2f;
     

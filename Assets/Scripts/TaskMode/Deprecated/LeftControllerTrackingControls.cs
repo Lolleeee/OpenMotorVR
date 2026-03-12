@@ -37,8 +37,7 @@ public class LeftControllerTrackingControls : MonoBehaviour
             return;
 
         bool startPausePressed = (startPauseAction.action?.ReadValue<float>() ?? 0f) > pressThreshold;
-        Vector2 stopValue = stopAction.action?.ReadValue<Vector2>() ?? Vector2.zero;
-        bool stopPressed = stopValue.magnitude > pressThreshold;
+        bool stopPressed = (stopAction.action?.ReadValue<float>() ?? 0f) > pressThreshold;
 
         if (startPausePressed && !_startPauseWasPressed)
         {

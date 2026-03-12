@@ -102,3 +102,7 @@ InitTestScene*.unity*
 # Python 
 .venv/
 
+# Assets Pack
+/[Aa]ssets/Furniture Mega Pack/
+/[Aa]ssets/Brick Project Studio/
+/[Aa]ssets/nappin/
